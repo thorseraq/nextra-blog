@@ -11,9 +11,9 @@
     "vercel-build": "yarn workspace nextra run build && yarn workspace nextra-theme-docs run build && yarn build"
   },
   "dependencies": {
-    "next": "^13.4.4",
-    "nextra": "^2.6.1",
-    "nextra-theme-blog": "^2.6.1",
+    "next": "^13.4.19",
+    "nextra": "^2.12.1",
+    "nextra-theme-blog": "^2.12.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
