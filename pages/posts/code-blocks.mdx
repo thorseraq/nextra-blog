@@ -1,0 +1,49 @@
+---
+title: CSS Container-query
+date: 2023/9/10
+description: 2022.12 Chrome 开始支持 CSS Container-query，尽管兼容性很差，但是使用 CSS 来代替 JS 直接操作 DOM，使用 repaint 更多地替代 reflow，最终优化页面响应性能的思路是一贯不变的。
+tag: Web development,JavaScript,CSS
+author: X1a0t
+---
+
+## ~~开幕雷击~~
+
+chrome 2022.12 开始支持 container-query，目前是兼容性很差的一个 css api，并不适用于生产环境: https://caniuse.com/?search=container-query 。
+
+但使用 CSS 来代替 JS 直接操作 DOM，使用 repaint 更多地替代 reflow，最终优化页面响应性能的思路是一贯不变的；这个思路下，已经有一些稳定的 CSS api，例如 transform, transition,keyframes,甚至 flex 这样的布局 css。（即使理论上可以使用 JS 实现所有 CSS 的功能，在浏览器足够兼容的情况下，这种更 "native" 的方式还是应该更多地被考虑）
+
+## One-liner 介绍
+
+类似 media-query 可以用来查询 viewport 大小，作为条件，为页面元素应用不同 CSS。 container-query 可以查询任何父级元素：
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309101048572.png)
+
+```html filename="index.html"
+<div class="card-container">
+  <div class="card">// ...</div>
+</div>
+```
+
+```css filename="style.css" {5, 11, 17}
+.card-container {
+  container: card / inline-size;
+}
+
+@container card (max-width: 399px) {
+  .card {
+    // ... css properties
+  }
+}
+
+@container card (min-width: 400px) and (max-width: 499px) {
+  .card {
+    // ... css properties
+  }
+}
+
+@container card (min-width: 500px) {
+  .card {
+    // ... css properties
+  }
+}
+```
