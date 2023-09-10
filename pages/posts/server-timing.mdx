@@ -1,0 +1,100 @@
+---
+title: 浏览器可见的服务器性能指标 Server timing
+type: post
+date: 2023/9/10
+description: Server timing 是一个 HTTP 响应头，相对于 opentelemetry + Grafana 上报 GCP/AWS/等云厂商/手动搭建的 tracing 方案，提供了一种更轻量的服务器性能指标观察方法。
+tag: Node, Web development, Chrome
+author: X1a0t
+---
+
+Server timing 是一个 HTTP 响应头，相对于 opentelemetry + Grafana 上报 GCP/AWS/等云厂商/手动搭建的 tracing 方案，提供了一种更轻量的服务器性能指标观察方法：
+
+```
+HTTP/1.1 200 OK
+
+Server-Timing: db;dur=53, graphql;dur=47.2, total;dur=123.1
+```
+
+如果服务器的实现中记录了 Request -> Response 耗时，（可选地详细记录各部分组件耗时），并且写在 Response Header 中，浏览器可以获得两个好处：
+
+1. 可以通过 Performance API 获取到这些数据，被各种形式被消费。
+
+```typescript {3, 7}
+// serverTiming entries can live on 'navigation' and 'resource' entries
+for (const entryType of ["navigation", "resource"]) {
+  for (const { name: url, serverTiming } of performance.getEntriesByType(
+    entryType
+  )) {
+    // iterate over the serverTiming array
+    for (const { name, duration, description } of serverTiming) {
+      // we only care about "slow" ones
+      if (duration > 200) {
+        console.info(
+          "Slow server-timing entry =",
+          JSON.stringify(
+            { url, entryType, name, duration, description },
+            null,
+            2
+          )
+        );
+      }
+    }
+  }
+}
+```
+
+2. Chrome 开发者工具支持直接显示 Server timing 数据，方便直接观察服务端性能。
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309101623345.png)
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309101623651.png)
+
+在 tracing 方案中，观察一个 Request 的方法通常是，在 Request-Header 中找到 `traceparent` header，拿到 trace id，然后在 tracing 系统中搜索这个 trace id，找到对应的 span，然后查看 span 的耗时和各种 tag。比较之下，在浏览器直接观察 Server 指标更方便一些。
+
+```
+traceparent: version-traceid-parentId-traceFlags // format
+traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
+```
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309101653691.png)
+
+### 基于 NestJS 中间件的实现
+
+```typescript filename="main.ts"
+const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+  // ...
+});
+
+app.use(serverTiming);
+await app.listen(port, host);
+
+// 完整实现 https://github.com/toeverything/AFFiNE/pull/3370/files
+```
+
+```typescript filename="serverTiming.ts"
+import { NextFunction, Request, Response } from "express";
+import onHeaders from "on-headers";
+
+export const serverTiming = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  req.res = res;
+  const now = process.hrtime();
+
+  onHeaders(res, () => {
+    const delta = process.hrtime(now);
+    const costInMilliseconds = (delta[0] + delta[1] / 1e9) * 1000;
+
+    const serverTiming = res.getHeader("Server-Timing") as string | undefined;
+    const serverTimingValue = `${
+      serverTiming ? `${serverTiming}, ` : ""
+    }total;dur=${costInMilliseconds}`;
+
+    res.setHeader("Server-Timing", serverTimingValue);
+  });
+
+  next();
+};
+```
