@@ -1,43 +1,11 @@
 /* eslint sort-keys: error */
 export default {
-  components: {
-    h1: ({ children }) => (
-      <h1
-        style={{
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-          backgroundImage: "linear-gradient(90deg,#7928CA,#FF0080)",
-        }}
-      >
-        {children}
-      </h1>
-    ),
-    blockquote: ({ children }) => (
-      <blockquote
-        style={{
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-          backgroundImage: "linear-gradient(120deg, #008080, #008050)",
-        }}
-      >
-        {children}
-      </blockquote>
-    ),
-    strong: ({ children }) => (
-      <strong
-        style={{
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "rgba(119,72,176,0.7)",
-          backgroundClip: "text",
-          // backgroundImage: 'linear-gradient(120deg, #008080, #8080cc)'
-        }}
-      >
-        {children}
-      </strong>
-    ),
-  },
+  head: ({ title, meta }) => (
+    <>
+      <title>The X1a0t</title>
+      <link rel="icon" type="image/png" href="/favicon.png"></link>
+    </>
+  ),
   darkMode: true,
   dateFormatter: (date) => `Last updated at ${date.toDateString()}`,
   footer: (
@@ -65,4 +33,30 @@ export default {
       `}</style>
     </small>
   ),
+  components: {
+    h1: ({ children }) => (
+      <h1
+        style={{
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          backgroundImage: "linear-gradient(90deg,#7928CA,#FF0080)",
+        }}
+      >
+        {children}
+      </h1>
+    ),
+    blockquote: ({ children }) => (
+      <blockquote
+        style={{
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          backgroundImage: "linear-gradient(120deg, #008080, #008050)",
+        }}
+      >
+        {children}
+      </blockquote>
+    ),
+  },
 };
