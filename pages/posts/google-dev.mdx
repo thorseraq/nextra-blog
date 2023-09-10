@@ -1,0 +1,34 @@
+---
+title: 2023 Google 上海 Dev 活动
+date: 2023/9/11
+description: 2022.12 Chrome 开始支持 CSS Container-query，尽管兼容性很差，但是使用 CSS 来代替 JS 直接操作 DOM，使用 repaint 更多地替代 reflow，最终优化页面响应性能的思路是一贯不变的。
+tag: Meeting
+author: X1a0t
+---
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/1CA09466-1F93-439F-A4D6-4ADCD28CCB7A_1_105_c.jpeg)
+
+活动现场有 AI 和 Web 两个会场，大厅展摊 Workshop，还有小会议室的专题场。~~不得不说 AI 太火了，显得 Web 一丝~~
+
+主要听了一下 Web 场，https://ioconnectchina.googlecnapps.cn/agenda/ ，内容兼顾新和成熟，已经可以在各种开发环境的稳定版见到，混杂一些商业推广；
+
+```text filename="Web 会场话题"
+webassembly
+webgpu
+interaction to next paint INP
+webview 构建安卓 native 应用 / custom tabs
+Auth passkey, 目前接入公司的还不多
+css animation
+media query，新 container query
+Angular 新特性
+private sandbox
+```
+
+Workshop 内容更新一些，有一部分还在 beta 阶段，例如某~~需要申请 waitlist~~ 的 Android Studio 插件，Google Map 3D 地形数据接口，Chrome devtool 新功能，机器学习新数据集和标准；
+
+约了和 Google Stuff 的一对一交流，但实际氛围比较自由，最后聊了两位！主要聊前端的 chunk 和加载性能影响和 Chrome dev tool 的 performance 工具，~~虽然最后都聊偏了~~。
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309101131866.png)
+
+关于 chunk 部分的结论是，使用过多数量的 Network IO 或者体积过大的 trunk 都会影响加载性能，经验上 64 KB 是一个比较好的体积，但还需要结合实际情况。
+
+目前 https://insider.affine.pro/ 的单个 workspace 页面需要从 CDN 加载的 js chunk 数量大概在 150 左右，体积从 1K 到 200K 不等，考虑到 CDN 和浏览器的缓存，~~这个数量和体积都是可以接受的~~（确定的结论是在 Slow 3G 的模拟网络可以看到明显的加载延迟）。
