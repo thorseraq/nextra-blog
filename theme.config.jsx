@@ -2,7 +2,7 @@
 export default {
   head: ({ title, meta }) => (
     <>
-      <title>The X1a0t</title>
+      <title>X1a0t</title>
       <link rel="icon" type="image/png" href="/favicon.png"></link>
     </>
   ),
