@@ -30,6 +30,6 @@ Workshop 内容更新一些，有一部分还在 beta 阶段，例如某~~需要
 约了和 Google Stuff 的一对一交流，但实际氛围比较自由，最后聊了两位！主要聊前端的 chunk 和加载性能影响和 Chrome dev tool 的 performance 工具，~~虽然最后都聊偏了~~。
 ![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309101131866.png)
 
-关于 chunk 部分的结论是，使用过多数量的 Network IO 或者体积过大的 trunk 都会影响加载性能，经验上 64 KB 是一个比较好的体积，但还需要结合实际情况。
+关于 chunk 部分的结论是，使用过小的 trunk 导致过多数量的 Network IO 或者体积过大的 trunk 都会影响加载性能，经验上 64 KB 是一个比较好的体积，但还需要结合实际情况。
 
 目前 https://insider.affine.pro/ 的单个 workspace 页面需要从 CDN 加载的 js chunk 数量大概在 150 左右，体积从 1K 到 200K 不等，考虑到 CDN 和浏览器的缓存，~~这个数量和体积都是可以接受的~~（确定的结论是在 Slow 3G 的模拟网络可以看到明显的加载延迟）。
