@@ -1,0 +1,100 @@
+---
+title: 从 Cloudflare CDN 闲聊
+type: post
+date: 2023/9/11
+description: CDN 一句话，可以将内容缓存到离用户地理位置更近的服务器，以提高加载速度，并且提供了 DDoS 防护，WAF 防火墙，流量监控等额外好处。对 Cloudflare 来说，一个 DNS Zone 是一个缓存集合。
+tag: Cloudflare, CDN
+author: X1a0t
+---
+
+CDN 一句话，可以将内容缓存到离用户地理位置更近的服务器，以提高加载速度，并且提供了 DDoS 防护，WAF 防火墙，流量监控等额外好处。
+
+配置 CDN 过程，以 Cloudflare 为例，在 Cloudflare 购买域名（因为对 Cloudflare 来说，一个 DNS Zone 是一个缓存集合），配置域名 DNS CNAME 代理到真正 host 静态资源的服务器域名/IP，然后将应用的静态资源加载域名配置成 Cloudflare 域名，就大功告成了。会发现**这个过程中并没有接触任何实际的 CDN 存储资源**，只是配置了 DNS。这时所有的静态资源都会经过 Cloudflare，根据缓存策略决定返回被缓存的资源或者请求服务器的静态资源。
+
+{/* 这是因为对 Cloudflare 来说，一个 DNS Zone 是一个缓存集合，经过这个 DNS 的 Request 都会经过 CDN 缓存层。 */}
+
+例如 Cloudflare 域名是 assets.com, 静态资源服务器是 aaa.bbb.ccc.dev，那么将 assets.com proxy 到 aaa.bbb.ccc.dev，所有的 Request（ assets.com/chunk.2262-4b0dfa22.js） 都可以经过 Cloudflare，根据策略被缓存，如果非命中，再打到 aaa.bbb.ccc.dev/chunk.2262-4b0dfa22.js。
+
+_Note: 因为对 Cloudflare 来说，一个域名 Zone 是一个缓存集合，所以如果新开了域名，缓存会是空的状态。_
+
+实际的静态服务器很灵活，可以是 nginx/Apache Static Server，也可以是 AWS S3/Cloudflare R2 等对象存储服务。或者被 k8s 部署，ingress 配好对外暴露域名的 [docker 容器](https://github.com/toeverything/AFFiNE/blob/46fd732ee63a3686a1f8cca732180a01cb42e0cd/.github/helm/affine/templates/ingress.yaml#L63)。
+
+CDN 和 HTTP 的缓存 Header 结合非常紧密，除了 Cloudflare 的默认缓存策略，Cloudflare 还会根据例如 Cache-Control 来决定缓存行为，也有定制的 [Cloudflare-CDN-Cache-Control 头](https://developers.cloudflare.com/cache/concepts/cdn-cache-control/#header-precedence)。例如如果 Request Header 的 Cache-control 设置成 no-cache，Cloudflare 就[不会缓存这个资源](https://developers.cloudflare.com/workers/runtime-apis/cache/#put)
+
+{/* Cloudflare cache，如果静态资源服务器配置了 HTTP Cache 头，或者专门添加了 Cloudflare 头，Cloudflare 会自动根据这些头应用 Cache 策略。可选针对域名配置 Cache 策略 */}
+
+{/* 所有的 Request URL 设置到 Cloudflare 的域名。 CDN 更像是一个过程，而不是一个 Endpoint。 */}
+
+{/* 例如域名是 assets.com, 静态资源服务器是 aaa.bbb.ccc.dev，那么将 assets.com proxy 到 aaa.bbb.ccc.dev，所有的 Request（ assets.com/chunk.2262-4b0dfa22.js） 都可以经过 Cloudflare，根据策略被缓存，非命中的再打到 aaa.bbb.ccc.dev/chunk.2262-4b0dfa22.js。 */}
+
+除了静态资源可以被缓存，动态资源是否可以？例如一个服务接口 /api/workspaces 返回的内容，（虽然可能意义不大，接口返回的数据往往没有静态资源体积大，而且经常变化）。
+
+\> 理论上任何 GET 请求都可以被 Cache，对于 Cloudflare 来说，使用 Cloudflare worker 来手动调 [cache 的 api](https://developers.cloudflare.com/workers/runtime-apis/cache/#put) 来定制这种行为比较方便。
+
+### 通过调试工具查看是否命中 CDN
+
+{/* 例如如果 Request Header 的 Cache-control 设置成 no-cache，Cloudflare 就不会换成这个资源 https://developers.cloudflare.com/workers/runtime-apis/cache/#put)。 */}
+
+Cloudflare 有非常方便的[调试工具 Dr.FLARE](https://chrome.google.com/webstore/detail/drflare/pibckhncbjabhlomohgcdedacopeooml/related?hl=en)，帮助查看缓存命中情况，下面是界面的几张截图。
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309132036129.png)
+
+一个全新的 Network 面板
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309132038428.png)
+
+查看 Request 是否被 Cloudflare DNS proxy 以及是否被缓存；cache 相关的 Header。
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309132039213.png)
+
+不使用 Dr.Flare 的情况下，可以看 `Response Header` 的 `Cf-Cache-Status` 判断缓存是否 Cloudflare 命中。
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309132042394.png)
+
+### Cloudflare Worker 和 CDN
+
+Cloudflare Worker 也共享 DNS zone 的缓存集合，worker 的拓扑是：
+
+{/* ![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309132053177.png) */}
+
+```filenam
+防火墙 -> Cloudflare Workers -> CDN -> Origin Server
+```
+
+因为 worker 在 CDN 前面，所以需要手动调用缓存相关的 API。但好消息是 worker 内使用的 fetch 请求（也被称为 subsequent request）默认使用 CDN 缓存。另外 fetch 也支持使用 `cf option` 定制缓存行为：
+
+{/* Cloudflare workers 在 Cloudflare CDN 前面；但是如果撞到防火墙，就会到 CDN(Edge Network) */}
+
+{/* worker 的 fetch 会根据设置 HTTP Request Header 的 Cache 规则和 Cloudflare worker 设置的规则来 cache Request，也可以定制 cache 行为 */}
+
+```typescript
+const handler: ExportedHandler = {
+  async fetch(request) {
+    const url = new URL(request.url);
+    // Only use the path for the cache key, removing query strings
+    // and always store using HTTPS, for example, https://www.example.com/file-uri-here
+    const someCustomKey = `https://${url.hostname}${url.pathname}`;
+    let response = await fetch(request, {
+      cf: {
+        // Always cache this fetch regardless of content type
+        // for a max of 5 seconds before revalidating the resource
+        cacheTtl: 5,
+        cacheEverything: true,
+        //Enterprise only feature, see Cache API for other plans
+        cacheKey: someCustomKey,
+      },
+    });
+    // Reconstruct the Response object to make its headers mutable.
+    response = new Response(response.body, response);
+    // Set cache control headers to cache on browser for 25 minutes
+    response.headers.set("Cache-Control", "max-age=1500");
+    return response;
+  },
+};
+
+export default handler;
+```
+
+除了使用 fetch 和 OPTION 定制缓存行为，worker 的运行时也提供了 [cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/#methods)，可以将 Request 对象作为 key 来 CRUD 缓存。上面提到的缓存动态资源，就可以使用这个 API 手动 set/get 缓存来实现。
+
+{/* 理论上任何 GET 请求都可以被 Cache，但是 Request Header 的 Cache-control 不能设置成 no-cache，https://developers.cloudflare.com/workers/runtime-apis/cache/#put。 当然最有用的往往是静态资源，体积大，且不经常变化。 */}
