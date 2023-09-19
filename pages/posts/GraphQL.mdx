@@ -1,0 +1,254 @@
+---
+title: GraphQL 有什么优势，值不值得买（误
+type: post
+date: 2023/9/11
+description: X
+tag: GraphQL
+author: X1a0t
+---
+
+虽然 GraphQL 的职责仅仅只有表达查询 => **忽略他的语法，只是一串表达想要查询的数据结构的 JSON**
+
+而并不关心:
+
+1. 查询如何从 Client 到 Server 传输 => **传输一串 JSON 的手段有很多**
+
+2. Server 端如何执行得到查询的结果 => **可能来自 Database，缓存，甚至直接 proxy 查询到从别处拿到值**
+
+但 GraphQL：
+
+1. 不仅具有强大的查询表达能力 => **名称里 Graph 的由来，可以做类似数据库 JOIN 操作的图节点 join 查询**
+
+2. 和 restful 接口一样，带动了繁荣 GraphQL 社区生态 => **[各种语言的 client，server](https://graphql.org/code/) 提供开箱即用的特性**
+
+GraphQL 默认使用 HTTP(S) 来作为网络传输协议，使用 POST 方法，payload 和 accept 类型都是 application/json。所以构造 GraphQL 请求非常容易，例如：
+
+```typescript
+const gqlFetcher = async (endpoint: RequestInfo | URL, gqlParam: {query: string, variables: Record<string,unknown>}, init?: RequestInit) => {
+    await fetch(endpoint, {
+        ...init,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({query: gqlParam.query, ...(gqlParam.variables ? gqlParam.variables : {})}),
+    });
+}
+
+await gqlFetcher({
+    query: `query RollDice($dice: Int!, $sides: Int) {
+      rollDice(numDice: $dice, numSides: $sides)
+    }`,
+    variables: {dice: 3, sides: 6}
+});
+```
+
+但是使用 Relay, Apollo Client 这样的 GraphQL Client 可以享受更多特性，例如 TypeScript 常用的 [Apollo Client](https://www.apollographql.com/docs/react/) 有：
+
+1. 开箱即用的 react hook，帮助刷新组件状态
+
+```typescript {2}
+function DogPhoto({ breed }) {
+  const { loading, error, data } = useQuery(GET_DOG_PHOTO, {
+    variables: { breed },
+  });
+
+  if (loading) return null;
+  if (error) return `Error! ${error}`;
+
+  return (
+    <img src={data.dog.displayImage} style={{ height: 100, width: 100 }} />
+  );
+}
+```
+
+2. 开箱即用的缓存方案，以及 revalidation 缓存策略
+
+```typescript
+import { ApolloClient, InMemoryCache } from "@apollo/client";
+
+const client = new ApolloClient({
+  cache: new InMemoryCache(),
+});
+```
+
+```typescript {3}
+// 1. polling - revalidation
+useQuery(/* xxx */, {
+    pollInterval: 500,
+});
+```
+
+```typescript {2, 7}
+// 2. refetch - revalidation
+const { loading, error, data, refetch } = useQuery(GET_DOG_PHOTO, {
+    variables: { breed },
+});
+
+return (
+  <button onClick={() => refetch({ breed: 'new_dog_breed' })}>
+    Refetch new breed!
+  </button>
+  );
+```
+
+3. 错误处理，分页，请求 batching 等等 feature
+
+使用 [Apollo Client](https://www.apollographql.com/docs/react/) 相对于裸写 fetch 的优势（不过对于 fetch 层很轻的前端应用来说，也可以直接用 fetch），总的来说，如果想要现成的 react hook，缓存
+
+Apollo Client 的 Cache 和 SWR(stale-while-revalidate) 思想相同；后者更通用
+
+4. 浏览器 dev tool
+
+5. 类型安全，根据 schema.gql 文件生成 typescript GraphQL 查询 https://github.com/dotansimha/graphql-code-generator。 [GraphQL Generator Playground](https://the-guild.dev/graphql/codegen)。
+
+对应地，使用 apollo server 而不是裸 HTTP server 可以带来的好处：
+
+[//]: # (访问 graphql 接口的方法：)
+
+[//]: # ()
+[//]: # (curl)
+
+[//]: # (fetch)
+
+[//]: # (GraphQL client libraries &#40;like Apollo Client&#41;)
+
+[//]: # (GraphQL Playground)
+
+[//]: # (postman)
+
+1. 不需要手写解析 GraphQL 查询，只需要在 Query，Mutation，Field Resolver 实现具体的 CRUD 实现
+
+2. GraphQL Playground，在 [graphql server path](https://github.com/toeverything/AFFiNE/blob/aefca9cebc818507ef735eec38918de4f41cbd88/apps/server/src/graphql.module.ts#L21) 的 80 端口
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309141720204.png)
+
+3. Postman 集成
+
+可以 introspect graphql server 来生成 graphql query，mutation
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309141732009.png)
+
+或使用 post，body 里选 graphql，优势是可以使用侧边的 `<>` 按钮转化成 curl 等各种 snippet
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309141746095.png)
+
+```
+curl --location --globoff 'http://[::1]:3010/graphql' \
+--header 'Content-Type: application/json' \
+--header 'Cookie: next-auth.callback-url=http%3A%2F%2Flocalhost%3A8080; next-auth.csrf-token=499f94e0082b557dffbb17df3e580a3d7a117da6f092b72ccfb2147e21c7d3b2%7C0195992ab4707e81509c36111aa22686ffb1b4e3e2276dcaa99e8462d21c70d7' \
+--data '{"query":"query getIsOwner($workspaceId: String!) {\n  isOwner(workspaceId: $workspaceId)\n}","variables":{"workspaceId":"abc"}}'
+```
+
+4. 与 HTTP，依赖注入等框架的集成 => ExpressJS, NestJS...
+
+[//]: # (```)
+
+[//]: # (// query)
+
+[//]: # (query getIsOwner&#40;$workspaceId: String!&#41; {)
+
+[//]: # (  isOwner&#40;workspaceId: $workspaceId&#41;)
+
+[//]: # (})
+
+[//]: # ()
+[//]: # (// query variables)
+
+[//]: # ({)
+
+[//]: # (    "workspaceId": "abc")
+
+[//]: # (})
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (如果没有参数，就可以省略前摇)
+
+[//]: # ()
+[//]: # (```)
+
+[//]: # (query Workspaces {)
+
+[//]: # (    workspaces {)
+
+[//]: # (        id)
+
+[//]: # (        public)
+
+[//]: # (        createdAt)
+
+[//]: # (        permission)
+
+[//]: # (        memberCount)
+
+[//]: # (        sharedPages)
+
+[//]: # (    })
+
+[//]: # (})
+
+[//]: # ()
+[//]: # ({)
+
+[//]: # (    workspaces {)
+
+[//]: # (        id)
+
+[//]: # (        public)
+
+[//]: # (        createdAt)
+
+[//]: # (        permission)
+
+[//]: # (        memberCount)
+
+[//]: # (        sharedPages)
+
+[//]: # (    })
+
+[//]: # (})
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (https://graphql.org/graphql-js/basic-types/ 一个最小化的 graphql server)
+
+[//]: # ()
+[//]: # (https://www.apollographql.com/blog/graphql/examples/what-is-a-graphql-query-graphql-query-using-apollo-explorer/ 还不错)
+
+[//]: # ()
+[//]: # (GrapQlConf 2023 https://graphql.org/conf/)
+
+[//]: # ()
+[//]: # (GrapQlConf 2022 回放 https://www.apollographql.com/events/virtual-event/graphql-summit/ （可单独写篇）)
+
+
+[//]: # ()
+[//]: # (```)
+
+[//]: # (query {)
+
+[//]: # (  article&#40;id: "articleId"&#41; {)
+
+[//]: # (    title)
+
+[//]: # (    author {)
+
+[//]: # (      name)
+
+[//]: # (      articles {)
+
+[//]: # (        title)
+
+[//]: # (      })
+
+[//]: # (    })
+
+[//]: # (  })
+
+[//]: # (})
+
+[//]: # (```)
