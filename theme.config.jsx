@@ -58,5 +58,15 @@ export default {
         {children}
       </blockquote>
     ),
+      strong: ({ children }) => (
+          <span
+              style={{
+                  background: "rgb(189 228 227 / 53%)",  // 设置半透明的背景色
+                  color: "#676060"  // 设置文本颜色
+              }}
+          >
+              {children}
+          </span>
+      ),
   },
 };
