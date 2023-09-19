@@ -2,12 +2,12 @@
 title: 从 Cloudflare CDN 闲聊
 type: post
 date: 2023/9/11
-description: CDN 一句话，将内容缓存到离用户地理位置更近的服务器，可以提高加载速度，并且提供 DDoS 防护，WAF 防火墙，流量监控等额外好处。对 Cloudflare 来说，一个 DNS Zone 是一个缓存集合。
+description: CDN 将内容缓存到离用户地理位置更近的服务器，可以提高加载速度，并且提供 DDoS 防护，WAF 防火墙，流量监控等额外好处。对 Cloudflare 来说，一个 DNS Zone 是一个缓存集合。
 tag: Cloudflare, CDN
 author: X1a0t
 ---
 
-CDN 一句话，将内容缓存到离用户地理位置更近的服务器，可以提高加载速度，并且提供 DDoS 防护，WAF 防火墙，流量监控等额外好处。
+CDN 将内容缓存到离用户地理位置更近的服务器，可以提高加载速度，并且提供 DDoS 防护，WAF 防火墙，流量监控等额外好处。
 
 配置 CDN 过程，以 Cloudflare 为例，在 Cloudflare 购买域名（因为对 Cloudflare 来说，一个 DNS Zone 是一个缓存集合），配置域名 DNS CNAME 代理到真正 host 静态资源的服务器域名/IP，然后将应用的静态资源加载域名配置成 Cloudflare 域名，就大功告成了。会发现**这个过程中并没有接触任何实际的 CDN 存储资源**，只是配置了 DNS。这时所有的静态资源都会经过 Cloudflare，根据缓存策略决定返回被缓存的资源或者请求服务器的静态资源。
 
