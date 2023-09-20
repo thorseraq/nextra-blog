@@ -1,0 +1,62 @@
+---
+title: Serverless 开发体验如何，梭哈还是只 Serverless 一点点
+type: post
+date: 2023/9/11
+description: 2023 年，各大云厂商都提供了 Serverless 服务，有一些稍小规模的 SaaS 软件也提供了 Serverless。那么对于比较成熟的 Serverless 服务，开发体验到底如何，工具链齐全吗？部署是否方便...
+tag: cloudflare, worker, serverless, gcp, cloud function
+author: X1a0t
+---
+
+2023 年，各大云厂商都提供了 Serverless 服务，有一些稍小规模的 SaaS 软件也提供了 Serverless。一个非常常见的 Serverless 场景就是 HTTP Request -> Serverless 服务 -> HTTP Response。
+
+那么对于比较成熟的 Serverless 服务，开发体验到底如何，工具链齐全吗？部署是否方便？存储监控日志缓存等配套设施是否齐全？本文将从 Cloudflare worker 和 Google Cloud Function (~~只用过这两个~~) 来管中窥豹，看看 Serverless 开发体验究竟如何。
+
+{/* TLDR；工具链比较齐全(Cloudflare)/或者不需要额外的工具链 */}
+
+{/* 对于第一个问题：**工具链比较齐全(Cloudflare)/或者不需要额外的工具链(Google Cloud Function)**，部署 */}
+
+在谈开发工具链之前，Runtime 决定了可以直接复用哪些工具：
+
+- Google Cloud Function 提供 [标准的 Node.JS 运行时](https://cloud.google.com/functions/docs/concepts/execution-environment?hl=zh-cn) (以及 Go, Java，PHP 等等的运行时)
+
+- Cloudflare worker 使用 Wasm server runtime - [workerd](https://github.com/cloudflare/workerd), 有着比较完整的浏览器环境 API 支持，因此更像是一个浏览器环境，而不是 Node.js 运行时。
+
+  1. 同时有 Cloudflare-specific api，例如 [CDN Cache， R2 等等](https://developers.cloudflare.com/workers/runtime-apis/)
+
+  2. 也[有一定的 Node.js 环境兼容性](https://developers.cloudflare.com/workers/runtime-apis/nodejs/)，例如常用的 path，Buffer 就被实现了。除了直接使用这些 api，最大的好处是可以使用一些 **本身使用到 Node.js 运行时 api 的 npm 包**，而不需要担心这些包是否有被 polyfill 到浏览器的版本，或者 ~~需要自己实现~~ 甚至直接不能用。
+
+Cloudflare Worker 确实提供了非常好用的工具链 - [wrangler](https://developers.cloudflare.com/workers/wrangler/), 可以 init project，一个 [template project 的样子](https://github.com/thorseraq/wrangler-template-demo), 打包(没错，是可以打包)，deploy 到 cloudflare (好处是可以随时本地开发，deploy 上去检查效果)。
+
+如果是非常轻量的处理内容，Cloudflare 提供了 Web 编辑器，可以随时修改随时保存（部署）。
+
+{/* ![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309202316413.png) */}
+
+而对于 GCP 来说，虽然没有工具链，由于 runtime 是 Node.js 环境，所以本地直接使用 Node.JS 工具链开发就可以，本地能跑，原封不动搬到(可以拷贝，也可以上传 zip) Google Cloud Function 也能跑；唯一不同的是，HTTP 触发器需要手动安装 [@google-cloud/functions-framework](https://cloud.google.com/functions/docs/running/function-frameworks?hl=zh-cn)。Google Cloud Function 的部署是通过 Cloud Run CI 来跑的，每次更新 function 源代码都可以触发构建。
+
+对于存储，云厂商本身有各种存储产品，Google Cloud Function 可以接 GCS(对象存储), Cloud SQL(database)，等等；Cloudflare 有 R2(对象存储), CDN cache, KV, 甚至 [D1(database)](https://developers.cloudflare.com/d1/platform/client-api/) 的 [runtime api](https://developers.cloudflare.com/workers/runtime-apis/)。
+
+Cloudflare 的监控，Metrics：
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309202329822.png)
+
+Log 目前只能看实时：
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202309202334941.png)
+
+Google Cloud Function 的各种监控、性能指标体验非常完善，和正常部署在 GKE 的集群体验接近。
+
+{/* 那么 Serverless 只是给想要梭哈的人考虑吗？能不能只 Serverless 一点点 */}
+
+另外 Serverless 服务一般还支持自动扩容，这也和计费逻辑自洽 (按照资源用量，例如请求次数，执行时间，CPU 使用核数等等，自动扩容自然对应更高的计费)。Google
+
+那么 Serverless 究竟 值得/可以 梭哈吗？
+
+_一个比较个人、片面的观点是_：
+
+1. 由于 Serverless 可以极大地减少开发时间
+
+2. 并且由于 Serverless 使用独立的存储服务，当有必要时，后续 migration 到自建的后端也非常丝滑。
+
+因此对于想快速做出 MVP 项目的情况来说，完全可以直接梭哈。
+
+对于已经存在后端的项目，就没有必要了，更常见的是写一些轻量的功能来配合原有的服务。
