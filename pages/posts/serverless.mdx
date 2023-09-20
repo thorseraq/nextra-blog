@@ -11,10 +11,6 @@ author: X1a0t
 
 那么对于比较成熟的 Serverless 服务，开发体验到底如何，工具链齐全吗？部署是否方便？存储监控日志缓存等配套设施是否齐全？本文将从 Cloudflare worker 和 Google Cloud Function (~~只用过这两个~~) 来管中窥豹，看看 Serverless 开发体验究竟如何。
 
-{/* TLDR；工具链比较齐全(Cloudflare)/或者不需要额外的工具链 */}
-
-{/* 对于第一个问题：**工具链比较齐全(Cloudflare)/或者不需要额外的工具链(Google Cloud Function)**，部署 */}
-
 在谈开发工具链之前，Runtime 决定了可以直接复用哪些工具：
 
 - Google Cloud Function 提供 [标准的 Node.JS 运行时](https://cloud.google.com/functions/docs/concepts/execution-environment?hl=zh-cn) (以及 Go, Java，PHP 等等的运行时)
