@@ -1,0 +1,93 @@
+---
+title: 从 Golang 的 Once 实现闲聊
+type: post
+date: 2023/11/19
+description: Once 的实现包含了大量篇幅的注释，和经过了非常多数量的 commit，从经验上看大概率有非常多值得学习之处
+tag: Go
+author: X1a0t
+---
+
+最近无意间跳转到 [`Once`](https://github.com/golang/go/blob/master/src/sync/once.go) 的实现，发现包含了大量篇幅的注释，和经过了非常多数量的 commit，从经验上看大概率有非常多值得学习之处。而且实现也不长，大概几十行。
+
+![](https://image.thorseraq.com/thorseraq/picb/main//imgs/202311191535161.png)
+
+### 使用 Once 的好处和最小例子
+
+Once 的作用可以概括为 保证 `once.Do(f)` 可以：
+
+1. 被调用任意次数
+
+2. once 实例被复制到任意数量的 goroutine 中并发调用
+
+`f` 都只会被执行一次，并且所有调用方都会阻塞直到 `f` 执行结束，一个使用 `once` 的例子：
+
+```go
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var (
+		once sync.Once
+		w    sync.WaitGroup
+		age  int
+	)
+
+	g := func() {
+		age++
+	}
+
+	for i := 0; i < 5; i++ {
+		w.Add(1)
+		go func() {
+			once.Do(g)
+			w.Done()
+		}()
+	}
+
+	w.Wait()         // 等待所有 goroutine 执行结束
+	fmt.Println(age) // 输出 1，而不是 5, g 只会被执行一次
+}
+```
+
+### 注释中解释了哪些
+
+1. Once 持有 `atomic.Uint32` 来保证 f 只执行一次。但同时还需要持有 `Mutex` 来保证 `f` 的执行结束发生在所有 `once.Do(f)` 的调用返回之前。配合方式可以概括为，所有的 `once.Do(f)` 都会在 `atomic.Uint32` 的值为 0 时，去尝试获取 `Mutex` （拿到锁之后，重新判断 `atomic.Uint32` 的值，如果已经不是 0，就提前返回。因此只有一次调用会实际执行 f，其他的调用都只是用 Mutex 来同步 f 的执行完成时机）来执行 `f`，执行结束就会改变 `atomic.Uint32` 的值为 1，然后再解锁（通过 defer 的 LIFO 栈来保证先后顺序）。
+
+```go
+// Note: Here is an incorrect implementation of Do:
+//
+//	if o.done.CompareAndSwap(0, 1) {
+//		f()
+//	}
+//  ... https://github.com/golang/go/blob/master/src/sync/once.go#L55C1-L61C60
+```
+
+2. `once.Do(f)` 没有参数，但可以通过闭包的方式传参
+
+```go
+func onceCallWithParam() {
+	var once sync.Once
+	age, step := 0, 5
+	once.Do(func() {
+		increaseBy(&age, step)
+	})
+}
+
+func increaseBy(age *int, step int) {
+	*age += step
+}
+```
+
+3. 使用 Once 封装成的 OnceFunc，如果 f 首次执行会 panic，后续都会 panic。并且第一次是什么 panic 结果，后面都会是相同的 panic。是通过持有 `var valid bool` （保存是否 panic 过）和 `var p any` (保存 recover 得到的值) 来实现的。
+
+### 一些碎碎念
+
+最上面的例子为了更清楚所以定义了单独的 g，其实放到匿名函数中也是被认可的做法，例如 [once_test 的单测](https://github.com/golang/go/blob/d67ac9389517aa15e0f6355aec13cc4a8773984b/src/sync/once_test.go#L19) 有类似的用法。
+
+```go
+once.Do(func() {
+    age++
+})
+```
